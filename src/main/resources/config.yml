@@ -12,6 +12,26 @@ lobby:
   yaw: 0.0
   pitch: 0.0
 
+survival:
+  world: "world"
+  x: 0.5
+  y: 100.0
+  z: 0.5
+  yaw: 0.0
+  pitch: 0.0
+
+protection:
+  enabled: true
+  block-break: true
+  block-place: true
+  pvp: false
+  damage: false
+  hunger: false
+  item-drop: false
+  item-pickup: true
+  inventory-click: false
+  weather-clear: true
+
 menu-item:
   slot: 4
   material: COMPASS
@@ -29,7 +49,9 @@ messages:
   importing: "&aImportuję świat lobby: &e%world%&a..."
   imported: "&aZaimportowano świat &e%world%&a. Teraz wpisz &e/mvtp %world% &ai potem &e/setlobby&a."
   import-failed: "&cNie udało się zaimportować świata. Sprawdź, czy folder świata istnieje."
-  world-not-loaded: "&cŚwiat lobby nie jest załadowany. Użyj: &e/importlobby <nazwa>"
+  world-not-loaded: "&cTen świat nie jest załadowany."
   lobby-set: "&aUstawiono lobby w świecie &e%world%&a."
-  teleported: "&aPrzeniesiono do lobby."
+  survival-set: "&aUstawiono spawn survivalu w świecie &e%world%&a."
+  lobby-teleported: "&aPrzeniesiono do lobby."
+  survival-teleported: "&aPrzeniesiono na survival."
   reload: "&aPrzeładowano konfigurację lobby."

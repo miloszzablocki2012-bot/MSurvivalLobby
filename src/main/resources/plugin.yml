@@ -1,5 +1,5 @@
 name: MSurvivalLobby
-version: 2.0
+version: 3.0
 main: pl.msurvival.lobby.MSurvivalLobby
 api-version: '1.21'
 author: Milekz
@@ -9,17 +9,17 @@ softdepend:
 
 commands:
   lobby:
-    description: Teleportuje do lobby
-    usage: /lobby
+    usage: /lobby [gracz]
     aliases: [hub]
+  survival:
+    usage: /survival [gracz]
   setlobby:
-    description: Ustawia lobby
     usage: /setlobby
+  setsurvival:
+    usage: /setsurvival
   importlobby:
-    description: Importuje świat lobby przez Multiverse i ustawia go w configu
     usage: /importlobby <nazwa_swiata>
   lobbyreload:
-    description: Przeładowuje config lobby
     usage: /lobbyreload
 
 permissions:
