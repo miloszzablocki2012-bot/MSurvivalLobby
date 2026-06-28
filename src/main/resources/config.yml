@@ -1,9 +1,8 @@
 settings:
   teleport-on-join: true
   teleport-delay-ticks: 20
-  clear-inventory-in-lobby: false
   give-menu-item-on-join: true
-  lobby-world: "Lobby"
+  menu-command: "menu"
 
 lobby:
   world: "Lobby"
@@ -26,7 +25,11 @@ menu-item:
 messages:
   prefix: "&6&lMSurvivalLobby &8» &r"
   no-permission: "&cNie masz uprawnień."
+  usage-import: "&cUżycie: &e/importlobby <nazwa_swiata>"
+  importing: "&aImportuję świat lobby: &e%world%&a..."
+  imported: "&aZaimportowano świat &e%world%&a. Teraz wpisz &e/mvtp %world% &ai potem &e/setlobby&a."
+  import-failed: "&cNie udało się zaimportować świata. Sprawdź, czy folder świata istnieje."
+  world-not-loaded: "&cŚwiat lobby nie jest załadowany. Użyj: &e/importlobby <nazwa>"
   lobby-set: "&aUstawiono lobby w świecie &e%world%&a."
-  lobby-not-found: "&cŚwiat lobby nie jest załadowany. Użyj /mv import Lobby normal."
   teleported: "&aPrzeniesiono do lobby."
   reload: "&aPrzeładowano konfigurację lobby."
