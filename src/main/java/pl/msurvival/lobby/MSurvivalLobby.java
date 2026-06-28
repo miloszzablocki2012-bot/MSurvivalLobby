@@ -3,61 +3,57 @@ package pl.msurvival.lobby;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.*;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.*;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.weather.WeatherChangeEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.potion.PotionEffect;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
-import java.util.Base64;
 
 @SuppressWarnings("deprecation")
 public final class MSurvivalLobby extends JavaPlugin implements Listener {
     private NamespacedKey menuItemKey;
+    private NamespacedKey guiActionKey;
     private File dataFile;
     private FileConfiguration data;
     private final Random random = new Random();
-    private NamespacedKey botIdKey;
-    private final Map<String, Long> botCooldown = new HashMap<>();
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         loadData();
         menuItemKey = new NamespacedKey(this, "msurvival_lobby_menu");
-        botIdKey = new NamespacedKey(this, "msurvival_lobby_bot");
+        guiActionKey = new NamespacedKey(this, "msurvival_lobby_gui_action");
         Bukkit.getPluginManager().registerEvents(this, this);
         registerCommands();
-        Bukkit.getScheduler().runTaskLater(this, () -> {
-            if (getConfig().getBoolean("bots.enabled", true) && getConfig().getBoolean("bots.auto-spawn-on-enable", true)) {
-                spawnBots();
-            }
-        }, 40L);
     }
 
     private void registerCommands() {
+        getCommand("menu").setExecutor((sender, command, label, args) -> {
+            if (sender instanceof Player player) openMenu(player);
+            return true;
+        });
+
+        getCommand("menuitem").setExecutor((sender, command, label, args) -> {
+            if (sender instanceof Player player) {
+                player.getInventory().addItem(createMenuItem());
+                player.sendMessage(msg("menuitem-given"));
+            }
+            return true;
+        });
+
         getCommand("lobby").setExecutor((sender, command, label, args) -> {
             Player target = resolveTarget(sender, args);
             if (target != null) teleportToLobby(target, sender == target);
@@ -93,53 +89,90 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
             return true;
         });
 
-        getCommand("setbot").setExecutor((sender, command, label, args) -> {
-            if (!(sender instanceof Player p)) return true;
-            if (!p.hasPermission("msurvivallobby.admin")) { p.sendMessage(msg("no-permission")); return true; }
-            if (args.length < 1) { p.sendMessage(color("&cUżycie: &e/setbot <id>")); return true; }
-
-            String id = args[0].toLowerCase(Locale.ROOT);
-            if (!getConfig().contains("bots." + id)) {
-                p.sendMessage(msg("bot-not-found"));
-                return true;
-            }
-
-            Location loc = p.getLocation();
-            getConfig().set("bots." + id + ".world", loc.getWorld().getName());
-            getConfig().set("bots." + id + ".x", loc.getX());
-            getConfig().set("bots." + id + ".y", loc.getY());
-            getConfig().set("bots." + id + ".z", loc.getZ());
-            getConfig().set("bots." + id + ".yaw", loc.getYaw());
-            getConfig().set("bots." + id + ".pitch", loc.getPitch());
-            saveConfig();
-            spawnBots();
-
-            p.sendMessage(msg("bot-set").replace("%bot%", id));
-            return true;
-        });
-
-        getCommand("spawnbots").setExecutor((sender, command, label, args) -> {
-            if (!sender.hasPermission("msurvivallobby.admin")) { sender.sendMessage(msg("no-permission")); return true; }
-            spawnBots();
-            sender.sendMessage(msg("bots-spawned"));
-            return true;
-        });
-
-        getCommand("removebots").setExecutor((sender, command, label, args) -> {
-            if (!sender.hasPermission("msurvivallobby.admin")) { sender.sendMessage(msg("no-permission")); return true; }
-            removeBots();
-            sender.sendMessage(msg("bots-removed"));
-            return true;
-        });
-
         getCommand("lobbyreload").setExecutor((sender, command, label, args) -> {
             if (!sender.hasPermission("msurvivallobby.admin")) { sender.sendMessage(msg("no-permission")); return true; }
             reloadConfig();
             loadData();
-            if (getConfig().getBoolean("bots.enabled", true)) spawnBots();
             sender.sendMessage(msg("reload"));
             return true;
         });
+    }
+
+    private void openMenu(Player player) {
+        Inventory inv = Bukkit.createInventory(null, getConfig().getInt("gui.size", 27), color(getConfig().getString("gui.title", "&6&lMSURVIVAL MENU")));
+        fill(inv);
+
+        addGuiItem(inv, "gui.lobby", "lobby");
+        addGuiItem(inv, "gui.survival", "survival");
+        addGuiItem(inv, "gui.keys", "keys");
+
+        player.openInventory(inv);
+    }
+
+    private void fill(Inventory inv) {
+        Material filler = parseMaterial(getConfig().getString("gui.filler", "BLACK_STAINED_GLASS_PANE"));
+        ItemStack item = new ItemStack(filler);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(" ");
+            item.setItemMeta(meta);
+        }
+        for (int i = 0; i < inv.getSize(); i++) inv.setItem(i, item);
+    }
+
+    private void addGuiItem(Inventory inv, String path, String action) {
+        int slot = getConfig().getInt(path + ".slot", 13);
+        ItemStack item = new ItemStack(parseMaterial(getConfig().getString(path + ".material", "STONE")));
+        ItemMeta meta = item.getItemMeta();
+
+        if (meta != null) {
+            meta.setDisplayName(color(getConfig().getString(path + ".name", "&fItem")));
+            List<String> lore = new ArrayList<>();
+            for (String line : getConfig().getStringList(path + ".lore")) lore.add(color(line));
+            meta.setLore(lore);
+            meta.getPersistentDataContainer().set(guiActionKey, PersistentDataType.STRING, action);
+            item.setItemMeta(meta);
+        }
+
+        inv.setItem(slot, item);
+    }
+
+    @EventHandler
+    public void onGuiClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (!event.getView().getTitle().equals(color(getConfig().getString("gui.title", "&6&lMSURVIVAL MENU")))) return;
+
+        event.setCancelled(true);
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || !clicked.hasItemMeta()) return;
+
+        ItemMeta meta = clicked.getItemMeta();
+        if (meta == null) return;
+
+        String action = meta.getPersistentDataContainer().get(guiActionKey, PersistentDataType.STRING);
+        if (action == null) return;
+
+        player.closeInventory();
+
+        if (action.equals("lobby")) {
+            teleportToLobby(player, true);
+            return;
+        }
+
+        if (action.equals("survival")) {
+            teleportToSurvival(player, true);
+            return;
+        }
+
+        if (action.equals("keys")) {
+            if (Bukkit.getPluginManager().getPlugin("MSurvivalKeys") != null) {
+                Bukkit.dispatchCommand(player, "key");
+                Bukkit.dispatchCommand(player, "menu");
+            } else {
+                player.sendMessage(color("&cMenu kluczy nie jest teraz dostępne."));
+            }
+        }
     }
 
     private void teleportToLobby(Player player, boolean message) {
@@ -150,6 +183,7 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
 
     private void teleportToSurvival(Player player, boolean message) {
         restoreLobbyInventory(player);
+
         Location destination = null;
         String messageKey = "survival-teleported";
 
@@ -163,9 +197,7 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
 
         if (destination == null && getConfig().getBoolean("survival-teleport.remember-random-spawn", true)) {
             destination = getSavedRandomSpawn(player);
-            if (destination != null) {
-                messageKey = "survival-random";
-            }
+            if (destination != null) messageKey = "survival-random";
         }
 
         if (destination == null && getConfig().getBoolean("survival-teleport.random-spawn-for-new-players", true)) {
@@ -176,76 +208,33 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
             }
         }
 
-        if (destination == null) {
-            destination = getLocation("survival");
-        }
-
+        if (destination == null) destination = getLocation("survival");
         teleport(player, destination, messageKey, message);
     }
 
-    private Location getSavedRandomSpawn(Player player) {
-        String path = "players." + player.getUniqueId();
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
 
-        if (!data.contains(path + ".world")) return null;
-
-        World world = Bukkit.getWorld(data.getString(path + ".world", ""));
-
-        if (world == null) return null;
-
-        return new Location(
-                world,
-                data.getDouble(path + ".x"),
-                data.getDouble(path + ".y"),
-                data.getDouble(path + ".z"),
-                (float) data.getDouble(path + ".yaw", 0.0),
-                (float) data.getDouble(path + ".pitch", 0.0)
-        );
-    }
-
-    private void saveRandomSpawn(Player player, Location loc) {
-        String path = "players." + player.getUniqueId();
-        data.set(path + ".name", player.getName());
-        data.set(path + ".world", loc.getWorld().getName());
-        data.set(path + ".x", loc.getX());
-        data.set(path + ".y", loc.getY());
-        data.set(path + ".z", loc.getZ());
-        data.set(path + ".yaw", loc.getYaw());
-        data.set(path + ".pitch", loc.getPitch());
-        saveData();
-    }
-
-    private Location generateRandomSurvivalSpawn() {
-        Location center = getLocation("survival");
-
-        if (center == null || center.getWorld() == null) return null;
-
-        World world = center.getWorld();
-        int radius = getConfig().getInt("survival-teleport.random-radius", 800);
-        int minY = getConfig().getInt("survival-teleport.min-y", 60);
-        int maxTries = getConfig().getInt("survival-teleport.max-tries", 80);
-
-        for (int i = 0; i < maxTries; i++) {
-            int x = center.getBlockX() + random.nextInt(radius * 2 + 1) - radius;
-            int z = center.getBlockZ() + random.nextInt(radius * 2 + 1) - radius;
-            int y = world.getHighestBlockYAt(x, z);
-
-            if (y < minY) continue;
-
-            Block ground = world.getBlockAt(x, y - 1, z);
-            Block feet = world.getBlockAt(x, y, z);
-            Block head = world.getBlockAt(x, y + 1, z);
-
-            if (!ground.getType().isSolid()) continue;
-            if (!feet.getType().isAir()) continue;
-            if (!head.getType().isAir()) continue;
-
-            Material g = ground.getType();
-            if (g == Material.LAVA || g == Material.WATER || g == Material.MAGMA_BLOCK || g == Material.CACTUS) continue;
-
-            return new Location(world, x + 0.5, y, z + 0.5, center.getYaw(), center.getPitch());
+        if (getConfig().getBoolean("settings.teleport-on-join", true)) {
+            Bukkit.getScheduler().runTaskLater(this, () -> {
+                if (p.isOnline()) teleportToLobby(p, false);
+            }, getConfig().getLong("settings.teleport-delay-ticks", 20L));
         }
 
-        return center;
+        if (getConfig().getBoolean("settings.give-menu-item-on-join", true)) {
+            Bukkit.getScheduler().runTaskLater(this, () -> giveMenuItem(p), 40L);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onMenuClick(PlayerInteractEvent e) {
+        Action a = e.getAction();
+        if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK) return;
+        if (!isMenuItem(e.getItem())) return;
+
+        e.setCancelled(true);
+        openMenu(e.getPlayer());
     }
 
     private Player resolveTarget(CommandSender sender, String[] args) {
@@ -281,161 +270,69 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
         }, 60L);
     }
 
-    @EventHandler
-    public void onBotClick(PlayerInteractEntityEvent event) {
-        String id = getBotId(event.getRightClicked());
-        if (id == null) return;
-
-        event.setCancelled(true);
-
-        Player player = event.getPlayer();
-        long now = System.currentTimeMillis();
-        long cd = getConfig().getLong("bots.click-cooldown-ms", 1500L);
-        String cooldownKey = player.getUniqueId() + ":" + id;
-
-        if (botCooldown.containsKey(cooldownKey) && now - botCooldown.get(cooldownKey) < cd) {
-            return;
-        }
-
-        botCooldown.put(cooldownKey, now);
-
-        String command = getConfig().getString("bots." + id + ".command", "");
-        if (command.isBlank()) return;
-
-        player.sendMessage(msg("bot-click"));
-
-        String finalCommand = color(command.replace("%player%", player.getName()));
-
-        if (finalCommand.startsWith("tell ")) {
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand.substring(0));
-        } else {
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
-        }
-    }
-
-    private void spawnBots() {
-        if (!getConfig().getBoolean("bots.enabled", true)) return;
-
-        removeBots();
-
-        ConfigurationSection section = getConfig().getConfigurationSection("bots");
-        if (section == null) return;
-
-        for (String id : section.getKeys(false)) {
-            if (id.equalsIgnoreCase("enabled") || id.equalsIgnoreCase("auto-spawn-on-enable") || id.equalsIgnoreCase("type") || id.equalsIgnoreCase("click-cooldown-ms")) {
-                continue;
-            }
-
-            if (!getConfig().getBoolean("bots." + id + ".enabled", true)) {
-                continue;
-            }
-
-            Location loc = getBotLocation(id);
-            if (loc == null) continue;
-
-            EntityType type = parseEntityType(getConfig().getString("bots.type", "VILLAGER"));
-            Entity entity = loc.getWorld().spawnEntity(loc, type);
-
-            entity.setCustomName(color(getConfig().getString("bots." + id + ".name", "&a&lBOT")));
-            entity.setCustomNameVisible(true);
-            entity.getPersistentDataContainer().set(botIdKey, PersistentDataType.STRING, id);
-
-            if (entity instanceof LivingEntity living) {
-                living.setAI(false);
-                living.setInvulnerable(true);
-                living.setCollidable(false);
-                living.setSilent(true);
-                living.setRemoveWhenFarAway(false);
-            }
-
-            spawnSubtitleArmorStand(id, loc);
-        }
-    }
-
-    private void spawnSubtitleArmorStand(String id, Location loc) {
-        String subtitle = getConfig().getString("bots." + id + ".subtitle", "");
-        if (subtitle == null || subtitle.isBlank()) return;
-
-        Location subtitleLoc = loc.clone().add(0, 2.15, 0);
-        Entity armorStand = subtitleLoc.getWorld().spawnEntity(subtitleLoc, EntityType.ARMOR_STAND);
-        armorStand.setCustomName(color(subtitle));
-        armorStand.setCustomNameVisible(true);
-        armorStand.getPersistentDataContainer().set(botIdKey, PersistentDataType.STRING, "subtitle:" + id);
-
-        if (armorStand instanceof LivingEntity living) {
-            living.setInvulnerable(true);
-            living.setSilent(true);
-            living.setGravity(false);
-            living.setAI(false);
-        }
-    }
-
-    private void removeBots() {
-        for (World world : Bukkit.getWorlds()) {
-            for (Entity entity : world.getEntities()) {
-                if (entity.getPersistentDataContainer().has(botIdKey, PersistentDataType.STRING)) {
-                    entity.remove();
-                }
-            }
-        }
-    }
-
-    private String getBotId(Entity entity) {
-        String id = entity.getPersistentDataContainer().get(botIdKey, PersistentDataType.STRING);
-        if (id == null) return null;
-        if (id.startsWith("subtitle:")) return null;
-        return id;
-    }
-
-    private Location getBotLocation(String id) {
-        World world = Bukkit.getWorld(getConfig().getString("bots." + id + ".world", getConfig().getString("lobby.world", "Lobby")));
+    private Location getSavedRandomSpawn(Player player) {
+        String path = "players." + player.getUniqueId();
+        if (!data.contains(path + ".world")) return null;
+        World world = Bukkit.getWorld(data.getString(path + ".world", ""));
         if (world == null) return null;
-
-        return new Location(
-                world,
-                getConfig().getDouble("bots." + id + ".x", 0.5),
-                getConfig().getDouble("bots." + id + ".y", 100.0),
-                getConfig().getDouble("bots." + id + ".z", 0.5),
-                (float) getConfig().getDouble("bots." + id + ".yaw", 0.0),
-                (float) getConfig().getDouble("bots." + id + ".pitch", 0.0)
-        );
+        return new Location(world, data.getDouble(path + ".x"), data.getDouble(path + ".y"), data.getDouble(path + ".z"), (float) data.getDouble(path + ".yaw", 0), (float) data.getDouble(path + ".pitch", 0));
     }
 
-    private EntityType parseEntityType(String value) {
-        try {
-            return EntityType.valueOf(value.toUpperCase(Locale.ROOT));
-        } catch (Exception e) {
-            return EntityType.VILLAGER;
-        }
+    private void saveRandomSpawn(Player player, Location loc) {
+        String path = "players." + player.getUniqueId();
+        data.set(path + ".name", player.getName());
+        data.set(path + ".world", loc.getWorld().getName());
+        data.set(path + ".x", loc.getX());
+        data.set(path + ".y", loc.getY());
+        data.set(path + ".z", loc.getZ());
+        data.set(path + ".yaw", loc.getYaw());
+        data.set(path + ".pitch", loc.getPitch());
+        saveData();
     }
 
-    @EventHandler
-    public void onJoin(PlayerJoinEvent e) {
-        Player p = e.getPlayer();
-        if (getConfig().getBoolean("settings.teleport-on-join", true)) {
-            Bukkit.getScheduler().runTaskLater(this, () -> { if (p.isOnline()) teleportToLobby(p, false); }, getConfig().getLong("settings.teleport-delay-ticks", 20L));
-        }
-        if (getConfig().getBoolean("settings.give-menu-item-on-join", true)) {
-            Bukkit.getScheduler().runTaskLater(this, () -> giveMenuItem(p), 30L);
-        }
-    }
+    private Location generateRandomSurvivalSpawn() {
+        Location center = getLocation("survival");
+        if (center == null || center.getWorld() == null) return null;
 
-    @EventHandler
-    public void onMenuClick(PlayerInteractEvent e) {
-        Action a = e.getAction();
-        if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK) return;
-        if (!isMenuItem(e.getItem())) return;
-        e.setCancelled(true);
-        String cmd = getConfig().getString("settings.menu-command", "menu");
-        if (cmd != null && !cmd.isBlank()) Bukkit.dispatchCommand(e.getPlayer(), cmd);
-        else teleportToLobby(e.getPlayer(), true);
+        World world = center.getWorld();
+        int radius = getConfig().getInt("survival-teleport.random-radius", 800);
+        int minY = getConfig().getInt("survival-teleport.min-y", 60);
+        int maxTries = getConfig().getInt("survival-teleport.max-tries", 80);
+
+        for (int i = 0; i < maxTries; i++) {
+            int x = center.getBlockX() + random.nextInt(radius * 2 + 1) - radius;
+            int z = center.getBlockZ() + random.nextInt(radius * 2 + 1) - radius;
+            int y = world.getHighestBlockYAt(x, z);
+
+            if (y < minY) continue;
+
+            Block ground = world.getBlockAt(x, y - 1, z);
+            Block feet = world.getBlockAt(x, y, z);
+            Block head = world.getBlockAt(x, y + 1, z);
+
+            if (!ground.getType().isSolid()) continue;
+            if (!feet.getType().isAir()) continue;
+            if (!head.getType().isAir()) continue;
+
+            Material g = ground.getType();
+            if (g == Material.LAVA || g == Material.WATER || g == Material.MAGMA_BLOCK || g == Material.CACTUS) continue;
+
+            return new Location(world, x + 0.5, y, z + 0.5, center.getYaw(), center.getPitch());
+        }
+
+        return center;
     }
 
     @EventHandler public void onBreak(BlockBreakEvent e){ if(blocked(e.getPlayer(),"block-break")) e.setCancelled(true); }
     @EventHandler public void onPlace(BlockPlaceEvent e){ if(blocked(e.getPlayer(),"block-place")) e.setCancelled(true); }
     @EventHandler public void onDrop(PlayerDropItemEvent e){ if(blocked(e.getPlayer(),"item-drop")) e.setCancelled(true); }
     @EventHandler public void onPickup(PlayerPickupItemEvent e){ if(blocked(e.getPlayer(),"item-pickup")) e.setCancelled(true); }
-    @EventHandler public void onInv(InventoryClickEvent e){ if(e.getWhoClicked() instanceof Player p && blocked(p,"inventory-click")) e.setCancelled(true); }
+
+    @EventHandler
+    public void onInv(InventoryClickEvent e){
+        if (e.getView().getTitle().equals(color(getConfig().getString("gui.title", "&6&lMSURVIVAL MENU")))) return;
+        if(e.getWhoClicked() instanceof Player p && blocked(p,"inventory-click")) e.setCancelled(true);
+    }
 
     @EventHandler
     public void onDamage(EntityDamageEvent e) {
@@ -509,40 +406,23 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
         if (!data.contains(path + ".contents")) {
             try {
                 PlayerInventory inv = player.getInventory();
-
                 data.set(path + ".name", player.getName());
                 data.set(path + ".contents", serialize(inv.getContents()));
                 data.set(path + ".armor", serialize(inv.getArmorContents()));
                 data.set(path + ".offhand", serialize(new ItemStack[]{inv.getItemInOffHand()}));
-
-                if (getConfig().getBoolean("lobby-inventory.save-xp", true)) {
-                    data.set(path + ".level", player.getLevel());
-                    data.set(path + ".exp", player.getExp());
-                    data.set(path + ".totalExp", player.getTotalExperience());
-                }
-
+                data.set(path + ".level", player.getLevel());
+                data.set(path + ".exp", player.getExp());
+                data.set(path + ".totalExp", player.getTotalExperience());
                 saveData();
             } catch (Exception e) {
                 getLogger().warning("Nie udalo sie zapisac ekwipunku gracza " + player.getName());
-                e.printStackTrace();
             }
         }
 
         player.getInventory().clear();
 
-        if (getConfig().getBoolean("lobby-inventory.clear-armor", true)) {
-            player.getInventory().setArmorContents(null);
-        }
-
-        if (getConfig().getBoolean("lobby-inventory.clear-offhand", true)) {
-            player.getInventory().setItemInOffHand(null);
-        }
-
-        if (getConfig().getBoolean("lobby-inventory.save-effects", false)) {
-            for (PotionEffect effect : player.getActivePotionEffects()) {
-                player.removePotionEffect(effect.getType());
-            }
-        }
+        if (getConfig().getBoolean("lobby-inventory.clear-armor", true)) player.getInventory().setArmorContents(null);
+        if (getConfig().getBoolean("lobby-inventory.clear-offhand", true)) player.getInventory().setItemInOffHand(null);
 
         player.updateInventory();
     }
@@ -552,71 +432,47 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
         if (!getConfig().getBoolean("lobby-inventory.restore-on-survival", true)) return;
 
         String path = "lobbyInventories." + player.getUniqueId();
-
-        if (!data.contains(path + ".contents")) {
-            return;
-        }
+        if (!data.contains(path + ".contents")) return;
 
         try {
             PlayerInventory inv = player.getInventory();
             inv.clear();
-
             inv.setContents(deserialize(data.getString(path + ".contents", "")));
             inv.setArmorContents(deserialize(data.getString(path + ".armor", "")));
 
             ItemStack[] offhand = deserialize(data.getString(path + ".offhand", ""));
-            if (offhand.length > 0 && offhand[0] != null) {
-                inv.setItemInOffHand(offhand[0]);
-            } else {
-                inv.setItemInOffHand(null);
-            }
+            if (offhand.length > 0 && offhand[0] != null) inv.setItemInOffHand(offhand[0]);
+            else inv.setItemInOffHand(null);
 
-            if (getConfig().getBoolean("lobby-inventory.save-xp", true)) {
-                player.setLevel(data.getInt(path + ".level", 0));
-                player.setExp((float) data.getDouble(path + ".exp", 0.0));
-                player.setTotalExperience(data.getInt(path + ".totalExp", 0));
-            }
+            player.setLevel(data.getInt(path + ".level", 0));
+            player.setExp((float) data.getDouble(path + ".exp", 0.0));
+            player.setTotalExperience(data.getInt(path + ".totalExp", 0));
 
             data.set(path, null);
             saveData();
-
             player.updateInventory();
             player.sendMessage(msg("inventory-restored"));
         } catch (Exception e) {
             getLogger().warning("Nie udalo sie przywrocic ekwipunku gracza " + player.getName());
-            e.printStackTrace();
         }
     }
 
     private String serialize(ItemStack[] items) throws Exception {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         ObjectOutputStream dataOutput = new ObjectOutputStream(outputStream);
-
         dataOutput.writeInt(items.length);
-
-        for (ItemStack item : items) {
-            dataOutput.writeObject(item);
-        }
-
+        for (ItemStack item : items) dataOutput.writeObject(item);
         dataOutput.close();
         return Base64.getEncoder().encodeToString(outputStream.toByteArray());
     }
 
     private ItemStack[] deserialize(String dataString) throws Exception {
-        if (dataString == null || dataString.isBlank()) {
-            return new ItemStack[0];
-        }
-
+        if (dataString == null || dataString.isBlank()) return new ItemStack[0];
         ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(dataString));
         ObjectInputStream dataInput = new ObjectInputStream(inputStream);
-
         int length = dataInput.readInt();
         ItemStack[] items = new ItemStack[length];
-
-        for (int i = 0; i < length; i++) {
-            items[i] = (ItemStack) dataInput.readObject();
-        }
-
+        for (int i = 0; i < length; i++) items[i] = (ItemStack) dataInput.readObject();
         dataInput.close();
         return items;
     }
@@ -657,7 +513,9 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
     private boolean isMenuItem(ItemStack item) {
         if (item == null || item.getType() == Material.AIR || !item.hasItemMeta()) return false;
         ItemMeta meta = item.getItemMeta();
-        return meta != null && meta.getPersistentDataContainer().has(menuItemKey, PersistentDataType.STRING);
+        if (meta == null) return false;
+        if (meta.getPersistentDataContainer().has(menuItemKey, PersistentDataType.STRING)) return true;
+        return meta.hasDisplayName() && meta.getDisplayName().equals(color(getConfig().getString("menu-item.name", "&6&lMSurvival Menu")));
     }
 
     private Material parseMaterial(String v) {
