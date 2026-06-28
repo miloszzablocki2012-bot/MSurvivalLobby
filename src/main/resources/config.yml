@@ -1,0 +1,32 @@
+settings:
+  teleport-on-join: true
+  teleport-delay-ticks: 20
+  clear-inventory-in-lobby: false
+  give-menu-item-on-join: true
+  lobby-world: "Lobby"
+
+lobby:
+  world: "Lobby"
+  x: 0.5
+  y: 100.0
+  z: 0.5
+  yaw: 0.0
+  pitch: 0.0
+
+menu-item:
+  slot: 4
+  material: COMPASS
+  name: "&6&lMSurvival Menu"
+  lore:
+    - "&8Nawigacja serwera"
+    - ""
+    - "&7Kliknij PPM, aby otworzyć menu."
+    - "&eLobby &8• &aSurvival &8• &6Klucze"
+
+messages:
+  prefix: "&6&lMSurvivalLobby &8» &r"
+  no-permission: "&cNie masz uprawnień."
+  lobby-set: "&aUstawiono lobby w świecie &e%world%&a."
+  lobby-not-found: "&cŚwiat lobby nie jest załadowany. Użyj /mv import Lobby normal."
+  teleported: "&aPrzeniesiono do lobby."
+  reload: "&aPrzeładowano konfigurację lobby."

@@ -1,0 +1,21 @@
+name: MSurvivalLobby
+version: 1.0
+main: pl.msurvival.lobby.MSurvivalLobby
+api-version: '1.21'
+author: Milekz
+softdepend:
+  - Multiverse-Core
+  - MSurvivalKeys
+
+commands:
+  lobby:
+    usage: /lobby
+    aliases: [hub, spawn]
+  setlobby:
+    usage: /setlobby
+  lobbyreload:
+    usage: /lobbyreload
+
+permissions:
+  msurvivallobby.admin:
+    default: op
