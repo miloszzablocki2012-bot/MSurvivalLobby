@@ -17,6 +17,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -31,7 +32,7 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
         menuItemKey = new NamespacedKey(this, "msurvival_lobby_menu");
         Bukkit.getPluginManager().registerEvents(this, this);
         registerCommands();
-        getLogger().info("MSurvivalLobby wlaczony!");
+        getLogger().info("MSurvivalLobby 2.0 wlaczony!");
     }
 
     private void registerCommands() {
@@ -43,26 +44,31 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
         });
 
         getCommand("setlobby").setExecutor((sender, command, label, args) -> {
-            if (!(sender instanceof Player player)) {
-                return true;
-            }
+            if (!(sender instanceof Player player)) return true;
 
             if (!player.hasPermission("msurvivallobby.admin")) {
                 player.sendMessage(msg("no-permission"));
                 return true;
             }
 
-            Location loc = player.getLocation();
-            getConfig().set("lobby.world", loc.getWorld().getName());
-            getConfig().set("lobby.x", loc.getX());
-            getConfig().set("lobby.y", loc.getY());
-            getConfig().set("lobby.z", loc.getZ());
-            getConfig().set("lobby.yaw", loc.getYaw());
-            getConfig().set("lobby.pitch", loc.getPitch());
-            getConfig().set("settings.lobby-world", loc.getWorld().getName());
-            saveConfig();
+            saveLobbyLocation(player.getLocation());
+            player.sendMessage(msg("lobby-set").replace("%world%", player.getWorld().getName()));
+            return true;
+        });
 
-            player.sendMessage(msg("lobby-set").replace("%world%", loc.getWorld().getName()));
+        getCommand("importlobby").setExecutor((sender, command, label, args) -> {
+            if (!sender.hasPermission("msurvivallobby.admin")) {
+                sender.sendMessage(msg("no-permission"));
+                return true;
+            }
+
+            if (args.length < 1) {
+                sender.sendMessage(msg("usage-import"));
+                return true;
+            }
+
+            String worldName = String.join(" ", args);
+            importLobbyWorld(sender, worldName);
             return true;
         });
 
@@ -76,6 +82,38 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
             sender.sendMessage(msg("reload"));
             return true;
         });
+    }
+
+    private void importLobbyWorld(org.bukkit.command.CommandSender sender, String worldName) {
+        File worldFolder = new File(Bukkit.getWorldContainer(), worldName);
+
+        if (!worldFolder.exists() || !new File(worldFolder, "level.dat").exists()) {
+            sender.sendMessage(msg("import-failed"));
+            sender.sendMessage(color("&7Folder powinien być w katalogu serwera i mieć plik &elevel.dat&7."));
+            return;
+        }
+
+        sender.sendMessage(msg("importing").replace("%world%", worldName));
+
+        if (Bukkit.getPluginManager().getPlugin("Multiverse-Core") != null) {
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "mv import \"" + worldName + "\" normal");
+        } else {
+            Bukkit.createWorld(new org.bukkit.WorldCreator(worldName));
+        }
+
+        Bukkit.getScheduler().runTaskLater(this, () -> {
+            World world = Bukkit.getWorld(worldName);
+
+            if (world == null) {
+                sender.sendMessage(msg("import-failed"));
+                return;
+            }
+
+            getConfig().set("lobby.world", worldName);
+            saveConfig();
+
+            sender.sendMessage(msg("imported").replace("%world%", worldName));
+        }, 60L);
     }
 
     @EventHandler
@@ -92,25 +130,7 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
         }
 
         if (getConfig().getBoolean("settings.give-menu-item-on-join", true)) {
-            Bukkit.getScheduler().runTaskLater(this, () -> {
-                if (!player.isOnline() || hasMenuItem(player)) {
-                    return;
-                }
-
-                int slot = getConfig().getInt("menu-item.slot", 4);
-                ItemStack item = createMenuItem();
-
-                if (slot >= 0 && slot <= 35) {
-                    ItemStack current = player.getInventory().getItem(slot);
-
-                    if (current == null || current.getType() == Material.AIR || isMenuItem(current)) {
-                        player.getInventory().setItem(slot, item);
-                        return;
-                    }
-                }
-
-                player.getInventory().addItem(item);
-            }, 30L);
+            Bukkit.getScheduler().runTaskLater(this, () -> giveMenuItem(player), 30L);
         }
     }
 
@@ -118,33 +138,36 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
     public void onMenuItemClick(PlayerInteractEvent event) {
         Action action = event.getAction();
 
-        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) {
-            return;
-        }
-
-        if (!isMenuItem(event.getItem())) {
-            return;
-        }
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+        if (!isMenuItem(event.getItem())) return;
 
         event.setCancelled(true);
 
-        if (Bukkit.getPluginManager().getPlugin("MSurvivalKeys") != null) {
-            Bukkit.dispatchCommand(event.getPlayer(), "menu");
+        String menuCommand = getConfig().getString("settings.menu-command", "menu");
+
+        if (menuCommand != null && !menuCommand.isBlank()) {
+            Bukkit.dispatchCommand(event.getPlayer(), menuCommand);
         } else {
             teleportToLobby(event.getPlayer(), true);
         }
+    }
+
+    private void saveLobbyLocation(Location loc) {
+        getConfig().set("lobby.world", loc.getWorld().getName());
+        getConfig().set("lobby.x", loc.getX());
+        getConfig().set("lobby.y", loc.getY());
+        getConfig().set("lobby.z", loc.getZ());
+        getConfig().set("lobby.yaw", loc.getYaw());
+        getConfig().set("lobby.pitch", loc.getPitch());
+        saveConfig();
     }
 
     private void teleportToLobby(Player player, boolean message) {
         Location lobby = getLobbyLocation();
 
         if (lobby == null) {
-            player.sendMessage(msg("lobby-not-found"));
+            player.sendMessage(msg("world-not-loaded"));
             return;
-        }
-
-        if (getConfig().getBoolean("settings.clear-inventory-in-lobby", false)) {
-            player.getInventory().clear();
         }
 
         player.teleport(lobby);
@@ -155,20 +178,39 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
     }
 
     private Location getLobbyLocation() {
-        String worldName = getConfig().getString("lobby.world", getConfig().getString("settings.lobby-world", "Lobby"));
+        String worldName = getConfig().getString("lobby.world", "Lobby");
         World world = Bukkit.getWorld(worldName);
 
         if (world == null) {
             return null;
         }
 
-        double x = getConfig().getDouble("lobby.x", 0.5);
-        double y = getConfig().getDouble("lobby.y", 100.0);
-        double z = getConfig().getDouble("lobby.z", 0.5);
-        float yaw = (float) getConfig().getDouble("lobby.yaw", 0.0);
-        float pitch = (float) getConfig().getDouble("lobby.pitch", 0.0);
+        return new Location(
+                world,
+                getConfig().getDouble("lobby.x", 0.5),
+                getConfig().getDouble("lobby.y", 100.0),
+                getConfig().getDouble("lobby.z", 0.5),
+                (float) getConfig().getDouble("lobby.yaw", 0.0),
+                (float) getConfig().getDouble("lobby.pitch", 0.0)
+        );
+    }
 
-        return new Location(world, x, y, z, yaw, pitch);
+    private void giveMenuItem(Player player) {
+        if (player == null || !player.isOnline() || hasMenuItem(player)) return;
+
+        int slot = getConfig().getInt("menu-item.slot", 4);
+        ItemStack item = createMenuItem();
+
+        if (slot >= 0 && slot <= 35) {
+            ItemStack current = player.getInventory().getItem(slot);
+
+            if (current == null || current.getType() == Material.AIR || isMenuItem(current)) {
+                player.getInventory().setItem(slot, item);
+                return;
+            }
+        }
+
+        player.getInventory().addItem(item);
     }
 
     private ItemStack createMenuItem() {
@@ -194,18 +236,13 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
 
     private boolean hasMenuItem(Player player) {
         for (ItemStack item : player.getInventory().getContents()) {
-            if (isMenuItem(item)) {
-                return true;
-            }
+            if (isMenuItem(item)) return true;
         }
         return false;
     }
 
     private boolean isMenuItem(ItemStack item) {
-        if (item == null || item.getType() == Material.AIR || !item.hasItemMeta()) {
-            return false;
-        }
-
+        if (item == null || item.getType() == Material.AIR || !item.hasItemMeta()) return false;
         ItemMeta meta = item.getItemMeta();
         return meta != null && meta.getPersistentDataContainer().has(menuItemKey, PersistentDataType.STRING);
     }
@@ -223,10 +260,7 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
     }
 
     private String color(String text) {
-        if (text == null) {
-            return "";
-        }
-
+        if (text == null) return "";
         return ChatColor.translateAlternateColorCodes('&', text);
     }
 }
