@@ -1,5 +1,5 @@
 name: MSurvivalLobby
-version: 3.0
+version: 6.0
 main: pl.msurvival.lobby.MSurvivalLobby
 api-version: '1.21'
 author: Milekz
@@ -21,6 +21,12 @@ commands:
     usage: /importlobby <nazwa_swiata>
   lobbyreload:
     usage: /lobbyreload
+  setbot:
+    usage: /setbot <id>
+  spawnbots:
+    usage: /spawnbots
+  removebots:
+    usage: /removebots
 
 permissions:
   msurvivallobby.admin:

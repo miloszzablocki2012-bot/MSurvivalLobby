@@ -20,6 +20,31 @@ survival:
   yaw: 0.0
   pitch: 0.0
 
+survival-teleport:
+  # Jeśli gracz ma łóżko/respawn point, /survival teleportuje go tam.
+  use-bed-spawn: true
+
+  # Jeśli gracz nie ma łóżka i nigdy nie wchodził na survival przez menu,
+  # dostanie losowy spawn w świecie survivalu.
+  random-spawn-for-new-players: true
+
+  # Jeśli true, pierwszy losowy spawn zostaje zapisany i gracz wraca tam,
+  # dopóki nie ustawi łóżka.
+  remember-random-spawn: true
+
+  random-radius: 800
+  min-y: 60
+  max-tries: 80
+
+lobby-inventory:
+  enabled: true
+  save-and-hide-items: true
+  restore-on-survival: true
+  clear-armor: true
+  clear-offhand: true
+  save-xp: true
+  save-effects: false
+
 protection:
   enabled: true
   block-break: true
@@ -42,6 +67,61 @@ menu-item:
     - "&7Kliknij PPM, aby otworzyć menu."
     - "&eLobby &8• &aSurvival &8• &6Klucze"
 
+
+bots:
+  enabled: true
+  auto-spawn-on-enable: true
+  type: VILLAGER
+  click-cooldown-ms: 1500
+
+  survival_latest:
+    enabled: true
+    name: "&a&lSURVIVAL NAJNOWSZY"
+    subtitle: "&7Kliknij, aby wejść"
+    command: "survival %player%"
+    world: "Lobby"
+    x: 0.5
+    y: 100.0
+    z: 6.5
+    yaw: 180.0
+    pitch: 0.0
+
+  survival_119:
+    enabled: true
+    name: "&e&lSURVIVAL 1.19"
+    subtitle: "&7Tryb do dodania później"
+    command: "survival %player%"
+    world: "Lobby"
+    x: -3.5
+    y: 100.0
+    z: 6.5
+    yaw: 180.0
+    pitch: 0.0
+
+  survival_121:
+    enabled: true
+    name: "&b&lSURVIVAL 1.21"
+    subtitle: "&7Tryb do dodania później"
+    command: "survival %player%"
+    world: "Lobby"
+    x: 3.5
+    y: 100.0
+    z: 6.5
+    yaw: 180.0
+    pitch: 0.0
+
+  duels:
+    enabled: true
+    name: "&c&lDUELS"
+    subtitle: "&7Pojedynki do dodania później"
+    command: "tell %player% &cDuels zostaną dodane później."
+    world: "Lobby"
+    x: 0.5
+    y: 100.0
+    z: 10.5
+    yaw: 180.0
+    pitch: 0.0
+
 messages:
   prefix: "&6&lMSurvivalLobby &8» &r"
   no-permission: "&cNie masz uprawnień."
@@ -51,7 +131,16 @@ messages:
   import-failed: "&cNie udało się zaimportować świata. Sprawdź, czy folder świata istnieje."
   world-not-loaded: "&cTen świat nie jest załadowany."
   lobby-set: "&aUstawiono lobby w świecie &e%world%&a."
-  survival-set: "&aUstawiono spawn survivalu w świecie &e%world%&a."
+  survival-set: "&aUstawiono centrum survivalu w świecie &e%world%&a."
   lobby-teleported: "&aPrzeniesiono do lobby."
+  survival-bed: "&aPrzeniesiono do twojego punktu odrodzenia."
+  survival-random: "&aPrzeniesiono na losowy start survivalu."
   survival-teleported: "&aPrzeniesiono na survival."
   reload: "&aPrzeładowano konfigurację lobby."
+  bot-set: "&aUstawiono bota &e%bot% &aw tym miejscu."
+  bots-spawned: "&aBoty lobby zostały odświeżone."
+  bots-removed: "&cUsunięto boty lobby."
+  bot-not-found: "&cNie ma takiego bota w configu."
+  bot-click: "&aPrzenoszenie..."
+  inventory-restored: "&aPrzywrócono ekwipunek survivalowy."
+  inventory-saved: "&7Ekwipunek został ukryty w lobby."
