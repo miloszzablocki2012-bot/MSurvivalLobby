@@ -1,14 +1,13 @@
 settings:
-  teleport-on-join: true
-  teleport-delay-ticks: 1
-  give-menu-item-on-join: true
+  teleport-to-lobby-on-join: true
+  join-delay-ticks: 1
 
 lobby:
   world: "Lobby"
-  x: -1.0
-  y: 71.0
-  z: 34.0
-  yaw: 180.0
+  x: 0.5
+  y: 100.0
+  z: 0.5
+  yaw: 0.0
   pitch: 0.0
 
 survival:
@@ -18,35 +17,7 @@ survival:
   z: 0.5
   yaw: 0.0
   pitch: 0.0
-
-survival-teleport:
   use-bed-spawn: true
-  random-spawn-for-new-players: true
-  remember-random-spawn: true
-  random-radius: 800
-  min-y: 60
-  max-tries: 80
-
-lobby-inventory:
-  enabled: true
-  save-and-hide-items: true
-  restore-on-survival: true
-  clear-armor: true
-  clear-offhand: true
-  save-xp: true
-  keep-lobby-items-earned: true
-
-protection:
-  enabled: true
-  block-break: true
-  block-place: true
-  pvp: false
-  damage: false
-  hunger: false
-  item-drop: false
-  item-pickup: false
-  inventory-click: false
-  weather-clear: true
 
 menu-item:
   slot: 4
@@ -60,47 +31,25 @@ menu-item:
 
 gui:
   title: "&6&lMSURVIVAL MENU"
-  size: 27
   filler: BLACK_STAINED_GLASS_PANE
 
-  lobby:
-    slot: 11
-    material: NETHER_STAR
-    name: "&e&lLobby"
-    lore:
-      - "&7Powrót do lobby."
-      - "&eKliknij, aby przejść."
-
-  survival:
-    slot: 13
-    material: GRASS_BLOCK
-    name: "&a&lSurvival"
-    lore:
-      - "&7Główny survival serwera."
-      - "&eKliknij, aby wejść."
-
-  keys:
-    slot: 15
-    material: LIGHTNING_ROD
-    name: "&6&lKlucze"
-    lore:
-      - "&7Otwiera menu kluczy."
-      - "&eKliknij, aby odebrać klucze."
+protection:
+  block-break: true
+  block-place: true
+  pvp: false
+  damage: false
+  hunger: false
+  drop: false
+  pickup: false
+  inventory-click: false
 
 messages:
   prefix: "&6&lMSurvivalLobby &8» &r"
   no-permission: "&cNie masz uprawnień."
-  usage-import: "&cUżycie: &e/importlobby <nazwa_swiata>"
-  importing: "&aImportuję świat lobby: &e%world%&a..."
-  imported: "&aZaimportowano świat &e%world%&a. Teraz wpisz &e/mvtp %world% &ai potem &e/setlobby&a."
-  import-failed: "&cNie udało się zaimportować świata. Sprawdź, czy folder świata istnieje."
-  world-not-loaded: "&cTen świat nie jest załadowany."
-  lobby-set: "&aUstawiono lobby w świecie &e%world%&a."
-  survival-set: "&aUstawiono centrum survivalu w świecie &e%world%&a."
-  lobby-teleported: "&aPrzeniesiono do lobby."
-  survival-bed: "&aPrzeniesiono do twojego punktu odrodzenia."
-  survival-random: "&aPrzeniesiono na losowy start survivalu."
-  survival-teleported: "&aPrzeniesiono na survival."
-  menuitem-given: "&aOtrzymałeś kompas menu."
-  inventory-restored: "&aPrzywrócono ekwipunek survivalowy."
-  reload: "&aPrzeładowano konfigurację lobby."
+  lobby-set: "&aUstawiono lobby."
+  survival-set: "&aUstawiono survival."
+  lobby: "&aPrzeniesiono do lobby."
+  survival: "&aPrzeniesiono na survival."
+  reload: "&aPrzeładowano config."
+  inventory-saved: "&7Ekwipunek survivalowy zapisany."
+  inventory-restored: "&aEkwipunek survivalowy przywrócony."
