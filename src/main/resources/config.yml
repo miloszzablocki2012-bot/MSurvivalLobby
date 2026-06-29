@@ -5,10 +5,10 @@ settings:
 
 lobby:
   world: "Lobby"
-  x: 0.5
-  y: 100.0
-  z: 0.5
-  yaw: 0.0
+  x: -1.0
+  y: 71.0
+  z: 34.0
+  yaw: 180.0
   pitch: 0.0
 
 survival:
@@ -84,8 +84,7 @@ gui:
     name: "&6&lKlucze"
     lore:
       - "&7Otwiera menu kluczy."
-      - "&8Jeśli plugin kluczy działa,"
-      - "&8otworzy się jego menu."
+      - "&eKliknij, aby odebrać klucze."
 
 bots:
   enabled: true
