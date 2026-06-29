@@ -1,15 +1,14 @@
 settings:
   teleport-to-lobby-on-join: true
-  join-delay-ticks: 1
-
+  join-delay-ticks: 2
+  auto-save-seconds: 20
 lobby:
   world: "Lobby"
-  x: 0.5
-  y: 100.0
-  z: 0.5
-  yaw: 0.0
+  x: -1.0
+  y: 71.0
+  z: 34.0
+  yaw: 180.0
   pitch: 0.0
-
 survival:
   world: "world"
   x: 0.5
@@ -18,21 +17,14 @@ survival:
   yaw: 0.0
   pitch: 0.0
   use-bed-spawn: true
-
 menu-item:
   slot: 4
   material: COMPASS
   name: "&6&lMSurvival Menu"
-  lore:
-    - "&8Nawigacja serwera"
-    - ""
-    - "&7Kliknij PPM, aby otworzyć menu."
-    - "&eLobby &8• &aSurvival &8• &6Klucze"
-
+  lore: ["&8Nawigacja serwera", "", "&7PPM, aby otworzyć menu.", "&eLobby &8• &aSurvival &8• &6Klucze &8• &bKity"]
 gui:
   title: "&6&lMSURVIVAL MENU"
   filler: BLACK_STAINED_GLASS_PANE
-
 protection:
   block-break: true
   block-place: true
@@ -42,7 +34,6 @@ protection:
   drop: false
   pickup: false
   inventory-click: false
-
 messages:
   prefix: "&6&lMSurvivalLobby &8» &r"
   no-permission: "&cNie masz uprawnień."
@@ -51,5 +42,3 @@ messages:
   lobby: "&aPrzeniesiono do lobby."
   survival: "&aPrzeniesiono na survival."
   reload: "&aPrzeładowano config."
-  inventory-saved: "&7Ekwipunek survivalowy zapisany."
-  inventory-restored: "&aEkwipunek survivalowy przywrócony."
