@@ -1,0 +1,39 @@
+name: MSurvivalLobby
+version: 7.0
+main: pl.msurvival.lobby.MSurvivalLobby
+api-version: '1.21'
+author: Milekz
+softdepend:
+  - Multiverse-Core
+  - MSurvivalKeys
+
+commands:
+  menu:
+    description: Otwiera menu lobby
+    usage: /menu
+  menuitem:
+    description: Daje kompas menu
+    usage: /menuitem
+  lobby:
+    description: Teleportuje do lobby
+    usage: /lobby [gracz]
+    aliases: [hub]
+  survival:
+    description: Teleportuje na survival
+    usage: /survival [gracz]
+  setlobby:
+    description: Ustawia lobby
+    usage: /setlobby
+  setsurvival:
+    description: Ustawia centrum survivalu
+    usage: /setsurvival
+  importlobby:
+    description: Importuje świat lobby
+    usage: /importlobby <nazwa_swiata>
+  lobbyreload:
+    description: Przeładowuje config lobby
+    usage: /lobbyreload
+
+permissions:
+  msurvivallobby.admin:
+    default: op
