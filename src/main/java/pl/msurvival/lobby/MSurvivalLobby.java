@@ -212,21 +212,13 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
     }
 
     @EventHandler
-    public void onSpawnLocation(PlayerSpawnLocationEvent event) {
-        if (!getConfig().getBoolean("settings.teleport-on-join", true)) return;
-
-        Location lobby = getLocation("lobby");
-        if (lobby != null) event.setSpawnLocation(lobby);
-    }
-
-    @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
 
         if (getConfig().getBoolean("settings.teleport-on-join", true)) {
             Bukkit.getScheduler().runTaskLater(this, () -> {
                 if (p.isOnline()) teleportToLobby(p, false);
-            }, getConfig().getLong("settings.teleport-delay-ticks", 20L));
+            }, getConfig().getLong("settings.teleport-delay-ticks", 1L));
         }
 
         if (getConfig().getBoolean("settings.give-menu-item-on-join", true)) {
