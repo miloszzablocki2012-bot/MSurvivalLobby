@@ -212,6 +212,14 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
     }
 
     @EventHandler
+    public void onSpawnLocation(PlayerSpawnLocationEvent event) {
+        if (!getConfig().getBoolean("settings.teleport-on-join", true)) return;
+
+        Location lobby = getLocation("lobby");
+        if (lobby != null) event.setSpawnLocation(lobby);
+    }
+
+    @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
 
@@ -433,9 +441,25 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
         String path = "lobbyInventories." + player.getUniqueId();
         if (!data.contains(path + ".contents")) return;
 
+        List<ItemStack> lobbyItems = new ArrayList<>();
+
+        if (getConfig().getBoolean("lobby-inventory.keep-lobby-items-earned", true)) {
+            for (ItemStack item : player.getInventory().getContents()) {
+                if (item != null && item.getType() != Material.AIR && !isMenuItem(item)) {
+                    lobbyItems.add(item.clone());
+                }
+            }
+
+            ItemStack offhandNow = player.getInventory().getItemInOffHand();
+            if (offhandNow != null && offhandNow.getType() != Material.AIR && !isMenuItem(offhandNow)) {
+                lobbyItems.add(offhandNow.clone());
+            }
+        }
+
         try {
             PlayerInventory inv = player.getInventory();
             inv.clear();
+
             inv.setContents(deserialize(data.getString(path + ".contents", "")));
             inv.setArmorContents(deserialize(data.getString(path + ".armor", "")));
 
@@ -446,6 +470,10 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
             player.setLevel(data.getInt(path + ".level", 0));
             player.setExp((float) data.getDouble(path + ".exp", 0.0));
             player.setTotalExperience(data.getInt(path + ".totalExp", 0));
+
+            for (ItemStack lobbyItem : lobbyItems) {
+                player.getInventory().addItem(lobbyItem);
+            }
 
             data.set(path, null);
             saveData();
