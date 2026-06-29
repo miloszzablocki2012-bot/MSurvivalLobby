@@ -167,8 +167,7 @@ public final class MSurvivalLobby extends JavaPlugin implements Listener {
 
         if (action.equals("keys")) {
             if (Bukkit.getPluginManager().getPlugin("MSurvivalKeys") != null) {
-                Bukkit.dispatchCommand(player, "key");
-                Bukkit.dispatchCommand(player, "menu");
+                Bukkit.dispatchCommand(player, "keysmenu");
             } else {
                 player.sendMessage(color("&cMenu kluczy nie jest teraz dostępne."));
             }
